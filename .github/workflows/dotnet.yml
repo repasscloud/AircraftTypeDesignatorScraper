@@ -1,0 +1,56 @@
+name: 🛩️ Download Aircracft Type Designator CSV
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:  # 🚀 Manual trigger
+  schedule:
+    - cron: '0 0 * * 3'  # ⏰ At 00:00 on Wednesday UTC
+
+jobs:
+  download-logos:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+
+      - name: 🛠️ Install .NET 9.0.x
+        run: |
+          # Download the dotnet-install script
+          wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh
+          chmod +x dotnet-install.sh
+          # Install the latest available .NET 9.0.x SDK to $HOME/dotnet
+          ./dotnet-install.sh --channel 9.0 --install-dir $HOME/dotnet
+
+      - name: ➕ Add .NET SDK to PATH
+        run: echo "$HOME/dotnet" >> $GITHUB_PATH
+
+      - name: ✅ Verify .NET installation
+        run: dotnet --version
+
+      - name: 🧱 Restore dependencies
+        run: dotnet restore
+
+      - name: 🏗️ Build project
+        run: dotnet build --no-restore
+
+      - name: 🚀 Run web scraper
+        run: dotnet run --project AircraftTypeDesignatorScraper.csproj
+
+      - name: 📦 Commit new CSV files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add *.csv
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "💾 Add newly generated CSV file"
+            git push origin main
+          fi
